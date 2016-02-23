@@ -17,8 +17,8 @@ urls = {PageObj('http://people.eecs.ku.edu/~kinners/660web/notes/notes_index.htm
 		}
 
 pushover = dict(
-	apptoken = '<APPTOKEN HERE>',
-	userkey = '<USERKEY HERE>'
+	apptoken = '<APP TOKEN HERE>',
+	userkey = '<USER KEY HERE>'
 	)
 
-dbAccessToken = '<DROPBOX ACCESS TOKEN HERE>'
+dbAccessToken = '<DB ACCESS TOKEN>'
