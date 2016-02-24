@@ -15,10 +15,3 @@ urls = {PageObj('http://people.eecs.ku.edu/~kinners/660web/notes/notes_index.htm
 				'Kinnersley posted new homework',
 				'/Documents/KU/EECS 660/Homework')
 		}
-
-pushover = dict(
-	apptoken = '<APP TOKEN HERE>',
-	userkey = '<USER KEY HERE>'
-	)
-
-dbAccessToken = '<DB ACCESS TOKEN>'

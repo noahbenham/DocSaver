@@ -4,20 +4,30 @@
 import requests # gets live data
 from bs4 import BeautifulSoup # parses our html
 import re
-import urlparse # allows absolute link checking
 import config # get config from config.py
-import httplib, urllib # allows push
-import dropbox # save directly to dropbox
+import http.client, urllib.request, urllib.parse, urllib.error # allows push
 import logging # keep record of what we do
 import json # allows parsing of dropbox response
+import os
+
+dbAccessToken = os.getenv('DOCSAVER_DB_ACCESSTOKEN')
+pushoverAppToken = os.getenv('DOCSAVER_PUSHOVER_APPTOKEN')
+pushoverUserKey = os.getenv('PUSHOVER_USERKEY')
+
+if dbAccessToken is None:
+	logging.error("[ERROR] Dropbox token could not be found")
+if pushoverAppToken is None:
+	logging.error("[ERROR] Pushover app token could not be found")
+if pushoverUserKey is None:
+	logging.error("[ERROR] Pushover user key could not be found")
 
 def is_absolute(url):
-	return bool(urlparse.urlparse(url).netloc)
+	return bool(urllib.parse.urlparse(url).netloc)
 
-logging.basicConfig(format='[%(asctime)s] %(levelname)s: %(message)s', filename='docsaver.log', level=logging.INFO)
+logging.basicConfig(format='[%(asctime)s] %(levelname)s: %(message)s', filename='docsaver.log', level=logging.ERROR)
+
 
 for pageObj in config.urls:
-
 	currentpage = requests.get(pageObj.url)
 	soup = BeautifulSoup(currentpage.text, "html5lib") # parse page with BeautifulSoup
 
@@ -30,27 +40,28 @@ for pageObj in config.urls:
 			full_file_link = pageObj.url.rsplit('/', 1)[0] + '/' + link['href']
 			file_name = link['href']
 
-		# File name was previously a URL - make it human readable
-		file_name = urllib.unquote(file_name).decode('utf8')
 
-
-		if full_file_link in open('saver_history.txt').read():
+		if full_file_link in open('saver_history.txt', 'r+').read():
 			continue # already saved this file, skip it
 
-		with open('saver_history.txt', 'a') as historyfile:
-			historyfile.write(full_file_link + '\n') # prevent repetitive saves
 
-		# Save this file to Dropbox using the absolute URL
+		file_name = urllib.parse.unquote(file_name) # make filename readable, e.g. %20 becomes ' '
+
+		# Attempt saving file to Dropbox
 		req = requests.post('https://api.dropboxapi.com/1/save_url/auto/{}/{}'.format(pageObj.dbdir, file_name),
-			headers={'Authorization': 'Bearer {}'.format(config.dbAccessToken)},
+			headers={'Authorization': 'Bearer {}'.format(dbAccessToken)},
 			data={'url': full_file_link})
 
 		# Make sure the file saved successfully
-		jobID = json.loads(req.text)['job']
+		jsonResponse = json.loads(req.text)
+		if 'error' in jsonResponse:
+			logging.error("Error saving file to Dropbox, response was: {}".format(jsonResponse['error']))
+			continue # break out of loop, continue to next file
+
 		dbSaveStatus = 'PENDING'
 		while(dbSaveStatus != 'COMPLETE' and dbSaveStatus != 'FAILED'): # loop until success or failure
-			req = requests.post('https://api.dropboxapi.com/1/save_url_job/{}'.format(jobID),
-				headers={'Authorization': 'Bearer {}'.format(config.dbAccessToken)})
+			req = requests.post('https://api.dropboxapi.com/1/save_url_job/{}'.format(jsonResponse['job']),
+				headers={'Authorization': 'Bearer {}'.format(dbAccessToken)})
 			dbSaveStatus = json.loads(req.text)['status']
 
 		# Report save status in notification
@@ -62,12 +73,11 @@ for pageObj in config.urls:
 
 
 		# Send Pushover notification
-		conn = httplib.HTTPSConnection("api.pushover.net:443")
-		conn.request("POST", "/1/messages.json",
-			urllib.urlencode({
-				"token": config.pushover['apptoken'],
-				"user": config.pushover['userkey'],
-				"message": noti_msg,
-				"url": full_file_link,
-			}), { "Content-type": "application/x-www-form-urlencoded" })
-		conn.getresponse()
+		url = 'https://api.pushover.net:443/1/messages.json'
+		payload = {'token': pushoverAppToken, 'user': pushoverUserKey,
+				   'message': noti_msg, 'url': full_file_link}
+		r = requests.post(url, params=payload)
+		logging.info("Sent message '{}' to user via Pushover".format(noti_msg))
+
+		with open('saver_history.txt', 'a') as historyfile:
+			historyfile.write(full_file_link + '\n') # prevent repetitive saves
