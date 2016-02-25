@@ -3,9 +3,8 @@
 
 import requests # gets live data
 from bs4 import BeautifulSoup # parses our html
-import re
 import config # get config from config.py
-import http.client, urllib.request, urllib.parse, urllib.error # allows push
+import urllib.request, urllib.parse, urllib.error # allows push
 import logging # keep record of what we do
 import json # allows parsing of dropbox response
 import os

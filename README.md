@@ -6,3 +6,5 @@ The following environment variables must be configured for this script to functi
 * DOCSAVER_DB_ACCESSTOKEN
 * DOCSAVER_PUSHOVER_APPTOKEN
 * PUSHOVER_USERKEY
+
+Additionally, you'll need to setup _config.py_ with your desired URLs and notification message. I'll automatically append the saved filename and its status as saved/unsaved to the notification for you.
